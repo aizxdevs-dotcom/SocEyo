@@ -30,9 +30,6 @@ build/
 # -------------------------
 # 🎨  Tailwind / PostCSS
 # -------------------------
-*.css.map
-postcss.config.js
-tailwind.config.js
 
 # -------------------------
 # 🧱  Environment / secrets
