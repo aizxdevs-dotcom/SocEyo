@@ -1,0 +1,45 @@
+/* ===========================================
+   Base Tailwind CSS imports — v4 syntax
+   =========================================== */
+
+/* Tailwind v4 automatically includes base (preflight),
+   components, and utilities layers */
+@import "tailwindcss";
+@import "slick-carousel/slick/slick.css";
+@import "slick-carousel/slick/slick-theme.css";
+
+
+/* If you want to import only part of Tailwind:
+   @import "tailwindcss/preflight";
+   @import "tailwindcss/utilities";
+   @import "tailwindcss/components";
+   But most projects only need the single import above. */
+
+/* ===========================================
+   Global overrides and custom tweaks
+   =========================================== */
+
+html, body {
+  @apply min-h-screen bg-gray-50 dark:bg-gray-900
+         text-gray-900 dark:text-gray-100
+         transition-colors duration-200;
+}
+
+a {
+  @apply text-blue-600 dark:text-blue-400 hover:underline;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-semibold tracking-tight;
+}
+
+button {
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2
+         focus:ring-blue-500 transition-all;
+}
+
+/* Smooth scroll + better iOS scrolling momentum */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
