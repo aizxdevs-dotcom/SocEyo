@@ -38,7 +38,6 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch comments when modal opens
   useEffect(() => {
     if (!isOpen) return;
     const fetchComments = async () => {
@@ -55,7 +54,6 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
     fetchComments();
   }, [isOpen, postId]);
 
-  // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const previews = files.map((file) => ({
@@ -66,23 +64,15 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
     setSelectedFiles(previews);
   };
 
-  // Submit new comment (text or with files)
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() && selectedFiles.length === 0) return;
     try {
       setSubmitting(true);
 
-      let created;
-      if (selectedFiles.length > 0) {
-        created = await addCommentWithFiles(
-          postId,
-          newComment.trim(),
-          selectedFiles.map((f) => f.file)
-        );
-      } else {
-        created = await addComment(postId, newComment.trim());
-      }
+      const created = selectedFiles.length > 0
+        ? await addCommentWithFiles(postId, newComment.trim(), selectedFiles.map((f) => f.file))
+        : await addComment(postId, newComment.trim());
 
       setComments((prev) => [created, ...prev]);
       setNewComment("");
@@ -98,11 +88,11 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm px-4 py-6 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-5 relative">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6 border-b pb-3">
-          <h2 className="text-xl font-semibold text-gray-800">Comments</h2>
+        <div className="flex justify-between items-center mb-4 border-b pb-3">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Comments</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 focus:outline-none text-lg"
@@ -112,7 +102,7 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
         </div>
 
         {/* Comments List */}
-        <div className="max-h-[500px] overflow-y-auto space-y-4 mb-6 pr-1">
+        <div className="max-h-[400px] overflow-y-auto space-y-4 mb-6 pr-1">
           {loading ? (
             <p className="text-sm text-gray-500">Loading comments...</p>
           ) : comments.length === 0 ? (
@@ -123,13 +113,11 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
                 key={c.comment_id}
                 className="flex gap-3 border border-gray-200 rounded-lg p-3 shadow-sm bg-gray-50"
               >
-                {/* Avatar */}
                 <img
                   src={c.user_profile_url || "/default-avatar.png"}
                   alt={c.username || "User"}
                   className="h-10 w-10 rounded-full object-cover border border-gray-300"
                 />
-
                 <div className="flex flex-col flex-1">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-medium text-gray-800">
@@ -139,18 +127,15 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
                       {new Date(c.created_at).toLocaleString()}
                     </span>
                   </div>
-
                   <p className="text-gray-700 text-sm mb-2">{c.description}</p>
-
-                  {/* Attached files */}
-                  {c.files && c.files.length > 0 && (
+                  {c.files?.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {c.files.map((f) => (
                         <img
                           key={f.file_id}
                           src={f.url}
                           alt="Attachment"
-                          className="h-32 w-auto rounded-md object-cover cursor-pointer hover:opacity-90 transition"
+                          className="h-28 max-w-[120px] rounded-md object-cover cursor-pointer hover:opacity-90"
                           onClick={() => window.open(f.url, "_blank")}
                         />
                       ))}
@@ -162,18 +147,17 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
           )}
         </div>
 
-        {/* Add New Comment */}
+        {/* New Comment */}
         <form onSubmit={handleAddComment} className="flex flex-col gap-3">
           <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Write a comment..."
-            className="w-full min-h-[80px] resize-none border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            className="w-full min-h-[70px] resize-none border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm sm:text-base"
           />
 
-          {/* File Previews */}
           {selectedFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-1">
               {selectedFiles.map((f) => (
                 <img
                   key={f.name}
@@ -192,17 +176,17 @@ export default function CommentModal({ postId, isOpen, onClose }: CommentModalPr
               multiple
               onChange={handleFileChange}
               className="w-full sm:w-auto text-sm text-gray-600
-                         file:mr-3 file:py-2 file:px-3
-                         file:rounded-md file:border-0
-                         file:bg-blue-50 file:text-blue-700
-                         hover:file:bg-blue-100 cursor-pointer"
+                       file:mr-3 file:py-2 file:px-3
+                       file:rounded-md file:border-0
+                       file:bg-blue-50 file:text-blue-700
+                       hover:file:bg-blue-100 cursor-pointer"
             />
 
             <Button
               type="submit"
               disabled={submitting}
               loading={submitting}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 text-sm font-medium rounded-md"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 text-sm font-medium"
             >
               {submitting ? "Posting..." : "Post"}
             </Button>

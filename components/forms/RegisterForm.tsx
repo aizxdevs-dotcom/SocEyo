@@ -10,7 +10,6 @@ import Button from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
-// ----- Validation schema -----
 const registerSchema = z
   .object({
     username: z.string().min(3, "Username must be at least 3 characters"),
@@ -23,7 +22,6 @@ const registerSchema = z
     path: ["confirmPassword"],
   });
 
-// ----- TS type for form data -----
 type RegisterInputs = z.infer<typeof registerSchema>;
 
 export default function RegisterForm() {
@@ -40,7 +38,6 @@ export default function RegisterForm() {
     resolver: zodResolver(registerSchema),
   });
 
-  // ----- Submit handler -----
   const onSubmit = async (values: RegisterInputs) => {
     try {
       await api.post("/register", {
@@ -60,7 +57,6 @@ export default function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      {/* Username */}
       <Input
         label="Username"
         placeholder="Your username"
@@ -68,7 +64,6 @@ export default function RegisterForm() {
         error={errors.username?.message}
       />
 
-      {/* Email */}
       <Input
         label="Email"
         type="email"
@@ -78,54 +73,54 @@ export default function RegisterForm() {
       />
 
       {/* Password */}
-<div className="relative">
-  <Input
-    label="Password"
-    type={showPassword ? "text" : "password"}
-    placeholder="••••••"
-    className="pr-10" // makes room for the icon
-    {...register("password")}
-    error={errors.password?.message}
-  />
-  <button
-    type="button"
-    onClick={() => setShowPassword(!showPassword)}
-    aria-label={showPassword ? "Hide password" : "Show password"}
-    className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
-  >
-    {showPassword ? (
-      <EyeSlashIcon className="h-5 w-5" />
-    ) : (
-      <EyeIcon className="h-5 w-5" />
-    )}
-  </button>
-</div>
+      <div className="relative">
+        <Input
+          label="Password"
+          type={showPassword ? "text" : "password"}
+          placeholder="••••••"
+          className="pr-10"
+          {...register("password")}
+          error={errors.password?.message}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          aria-label="Toggle password visibility"
+          className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+        >
+          {showPassword ? (
+            <EyeSlashIcon className="h-5 w-5" />
+          ) : (
+            <EyeIcon className="h-5 w-5" />
+          )}
+        </button>
+      </div>
 
-{/* Confirm Password */}
-<div className="relative">
-  <Input
-    label="Confirm Password"
-    type={showConfirmPassword ? "text" : "password"}
-    placeholder="••••••"
-    className="pr-10" // consistent spacing for the icon
-    {...register("confirmPassword")}
-    error={errors.confirmPassword?.message}
-  />
-  <button
-    type="button"
-    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-    className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
-  >
-    {showConfirmPassword ? (
-      <EyeSlashIcon className="h-4 w-5" />
-    ) : (
-      <EyeIcon className="h-4 w-5" />
-    )}
-  </button>
-</div>
+      {/* Confirm password */}
+      <div className="relative">
+        <Input
+          label="Confirm Password"
+          type={showConfirmPassword ? "text" : "password"}
+          placeholder="••••••"
+          className="pr-10"
+          {...register("confirmPassword")}
+          error={errors.confirmPassword?.message}
+        />
+        <button
+          type="button"
+          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+          aria-label="Toggle confirm password visibility"
+          className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+        >
+          {showConfirmPassword ? (
+            <EyeSlashIcon className="h-5 w-5" />
+          ) : (
+            <EyeIcon className="h-5 w-5" />
+          )}
+        </button>
+      </div>
 
-      {/* Submit Button */}
+      {/* Button */}
       <div className="pt-2">
         <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
           {isSubmitting ? "Creating Account…" : "Register"}

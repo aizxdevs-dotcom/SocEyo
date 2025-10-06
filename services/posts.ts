@@ -32,11 +32,8 @@ export interface CommentResponse {
   current_user_reaction?: string | null;
 }
 
-export const createPost = async (file: File, description: string) => {
-  const formData = new FormData();
-  formData.append("files", file);
-  formData.append("description", description);
-  const res = await api.post<Post>("/posts/upload", formData, {
+export const createPost = async (formData: FormData) => {
+  const res = await api.post("/posts/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return res.data;
@@ -63,20 +60,30 @@ export const getFeed = async () => {
 };
 
 // ---- Comments ----
+// ---- Comments ----
 export const addComment = async (postId: string, description: string) => {
   try {
-    // send JSON body that matches backend CommentCreate model
-    const res = await api.post<CommentResponse>("/comments", {
+    // Build payload dynamically
+    const payload: Record<string, any> = {
       post_id: postId,
       description,
-      file_ids: [], // optional — can omit if your backend makes this optional
-    });
+    };
 
-    // return normalized, typed comment data
+    // Don't send file_ids at all if not needed
+    // Backend already accepts comments without files
+
+    const res = await api.post<CommentResponse>("/comments", payload);
     return res.data;
-  } catch (error) {
-    console.error("Add comment failed:", error);
-    throw error; // let calling component handle UI feedback
+ } catch (error: any) {
+    // This gives readable diagnostic output
+    if (error.response) {
+      console.error("Server responded with:", error.response.status, error.response.data);
+    } else if (error.request) {
+      console.error("No response received:", error.request);
+    } else {
+      console.error("Error setting up request:", error.message);
+    }
+    throw error;
   }
 };
 

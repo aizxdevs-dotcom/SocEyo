@@ -8,9 +8,8 @@ import { api } from "@/services/api";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
-import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline"; // Heroicons is ideal for Tailwind projects
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
-// ----- Validation schema -----
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -33,15 +32,14 @@ export default function LoginForm() {
       const res = await api.post("/login", values);
       localStorage.setItem("access_token", res.data.access_token);
       router.push("/feed");
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       alert("Invalid credentials. Please try again.");
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      {/* Email */}
       <Input
         label="Email"
         type="email"
@@ -50,36 +48,33 @@ export default function LoginForm() {
         error={errors.email?.message}
       />
 
-      {/* Password field with show/hide toggle */}
-<div className="relative">
-  <Input
-    label="Password"
-    type={showPassword ? "text" : "password"}
-    placeholder="••••••"
-    className="pr-10" // ensures space for icon inside
-    {...register("password")}
-    error={errors.password?.message}
-  />
+      {/* Password */}
+      <div className="relative">
+        <Input
+          label="Password"
+          type={showPassword ? "text" : "password"}
+          placeholder="••••••"
+          className="pr-10"
+          {...register("password")}
+          error={errors.password?.message}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          aria-label="Toggle password visibility"
+          className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+        >
+          {showPassword ? (
+            <EyeSlashIcon className="h-5 w-5" />
+          ) : (
+            <EyeIcon className="h-5 w-5" />
+          )}
+        </button>
+      </div>
 
-  {/* Icon inside field */}
-  <button
-    type="button"
-    onClick={() => setShowPassword(!showPassword)}
-    aria-label={showPassword ? "Hide password" : "Show password"}
-    className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
-  >
-    {showPassword ? (
-      <EyeSlashIcon className="h-6 w-5" />
-    ) : (
-      <EyeIcon className="h-6 w-5" />
-    )}
-  </button>
-</div>
-
-      {/* Submit */}
       <div className="pt-2">
         <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
-          {isSubmitting ? "Signing in …" : "Login"}
+          {isSubmitting ? "Signing in…" : "Login"}
         </Button>
       </div>
     </form>

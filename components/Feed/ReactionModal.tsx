@@ -37,7 +37,7 @@ export default function ReactionModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // --- Reaction metadata (icon + color)
+  // --- Available reaction types
   const availableReactions = [
     { type: "like", icon: <FaThumbsUp className="w-8 h-8 text-blue-600" /> },
     { type: "haha", icon: <FaLaughSquint className="w-8 h-8 text-yellow-500" /> },
@@ -46,10 +46,10 @@ export default function ReactionModal({
     { type: "angry", icon: <FaAngry className="w-8 h-8 text-orange-600" /> },
   ];
 
-  // --- Load user + reactions when modal opens
+  // --- Fetch user and reactions
   useEffect(() => {
     if (!isOpen) return;
-    const fetchData = async () => {
+    const fetchReactions = async () => {
       try {
         setLoading(true);
         const [me, list] = await Promise.all([
@@ -66,7 +66,7 @@ export default function ReactionModal({
         setLoading(false);
       }
     };
-    fetchData();
+    fetchReactions();
   }, [isOpen, postId]);
 
   const handleReact = async (type: string) => {
@@ -88,21 +88,23 @@ export default function ReactionModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4 py-6 overflow-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-5 sm:p-6 relative">
         {/* Header */}
         <div className="flex justify-between items-center mb-4 border-b pb-3">
-          <h2 className="text-lg font-semibold text-gray-800">React to Post</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800">
+            React to Post
+          </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 focus:outline-none text-lg"
+            className="text-gray-500 hover:text-gray-700 text-lg sm:text-xl focus:outline-none"
           >
             ✕
           </button>
         </div>
 
-        {/* Reaction icons row */}
-        <div className="flex justify-around mb-6">
+        {/* Reaction Icons */}
+        <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-6">
           {availableReactions.map((r) => (
             <button
               key={r.type}
@@ -110,7 +112,9 @@ export default function ReactionModal({
               disabled={submitting}
               title={r.type}
               className={`p-2 rounded-full hover:scale-110 transition-transform ${
-                selectedReaction === r.type ? "bg-gray-100 ring-2 ring-blue-500" : ""
+                selectedReaction === r.type
+                  ? "bg-gray-100 ring-2 ring-blue-500"
+                  : ""
               }`}
             >
               {r.icon}
@@ -118,15 +122,15 @@ export default function ReactionModal({
           ))}
         </div>
 
-        {/* Users who reacted */}
+        {/* Reaction List */}
         {loading ? (
-          <p className="text-sm text-gray-500 text-center">Loading reactions...</p>
+          <p className="text-sm text-gray-500 text-center">Loading reactions…</p>
         ) : reactions.length === 0 ? (
           <p className="text-sm text-gray-500 text-center">
             Nobody has reacted yet. Be the first!
           </p>
         ) : (
-          <div className="max-h-60 overflow-y-auto space-y-2 border-t pt-3">
+          <div className="max-h-60 overflow-y-auto space-y-3 border-t pt-3 pr-1">
             {reactions.map((r) => {
               const matched = availableReactions.find((a) => a.type === r.type);
               return (
@@ -138,9 +142,9 @@ export default function ReactionModal({
                     <img
                       src={r.user_profile_url || "/default-avatar.png"}
                       alt={r.username}
-                      className="w-8 h-8 rounded-full border border-gray-200 object-cover"
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-gray-200 object-cover"
                     />
-                    <span className="text-sm text-gray-800 font-medium">
+                    <span className="text-sm sm:text-base text-gray-800 font-medium">
                       {r.username}
                     </span>
                   </div>
@@ -152,10 +156,10 @@ export default function ReactionModal({
         )}
 
         {/* Footer */}
-        <div className="mt-5 flex justify-end">
+        <div className="mt-6 flex justify-end">
           <Button
             onClick={onClose}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-1 rounded-md font-medium"
+            className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-5 py-1.5 sm:px-6 rounded-md text-sm sm:text-base font-medium"
           >
             Close
           </Button>
