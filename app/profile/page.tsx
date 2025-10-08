@@ -93,8 +93,9 @@ export default function ProfilePage() {
     }
   };
 
-  const photoSrc =
-    user?.photo_url ? `${user.photo_url}?t=${Date.now()}` : "/default-avatar.png";
+  const photoSrc = user?.photo_url
+  ? `${process.env.NEXT_PUBLIC_API_URL || ""}${user.photo_url}?t=${Date.now()}`
+  : "/default-avatar.png";
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-gray-900">

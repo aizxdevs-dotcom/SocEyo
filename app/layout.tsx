@@ -6,7 +6,11 @@ import ReactQueryProvider from "@/lib/ReactQueryProvider";
 export const metadata = {
   title: "Soceyo",
   description: "Social platform built with Next.js + FastAPI",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
+
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

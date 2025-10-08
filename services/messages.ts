@@ -1,17 +1,8 @@
+// app/services/message.ts
 import { api } from "./api";
 
-export interface Message {
-  message_id: string;
-  content: string;
-  timestamp: string;
-  sender_id: string;
-  username?: string;
-  user_profile_url?: string;
-  conversation_id: string;
-}
-
 export const sendMessage = async (conversationId: string, content: string) => {
-  const res = await api.post<Message>("/api/messages", {
+  const res = await api.post("/api/api/messages", {
     conversation_id: conversationId,
     content,
   });
@@ -19,16 +10,16 @@ export const sendMessage = async (conversationId: string, content: string) => {
 };
 
 export const getConversationMessages = async (conversationId: string) => {
-  const res = await api.get<Message[]>(`/api/conversations/${conversationId}/messages`);
+  const res = await api.get(`/api/api/conversations/${conversationId}/messages`);
   return res.data;
 };
 
-export const createConversation = async (title?: string) => {
-  const res = await api.post("/conversations", { title });
+export const updateMessage = async (messageId: string, content: string) => {
+  const res = await api.put(`/api/api/messages/${messageId}`, { content });
   return res.data;
 };
 
-export const listUserConversations = async () => {
-  const res = await api.get("/conversations");
+export const deleteMessage = async (messageId: string) => {
+  const res = await api.delete(`/api/api/messages/${messageId}`);
   return res.data;
 };

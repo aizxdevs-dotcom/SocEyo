@@ -19,6 +19,16 @@
    Global overrides and custom tweaks
    =========================================== */
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+
 html, body {
   @apply min-h-screen bg-gray-50 dark:bg-gray-900
          text-gray-900 dark:text-gray-100
