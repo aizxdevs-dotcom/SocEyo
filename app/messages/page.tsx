@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { getActiveUsers } from "@/services/active";
 import {
   listUserConversations,
+  createConversation,
   deleteConversation,
   Conversation,
 } from "@/services/conversation";
@@ -80,6 +81,7 @@ export default function MessagePage() {
       }
     };
     fetchAll();
+    
   }, []);
 
   const fetchMessages = async (conversationId: string) => {
@@ -252,7 +254,26 @@ export default function MessagePage() {
             activeUsers.map((u) => (
               <div
                 key={u.user_id}
-                onClick={() => handleSelectConversation(u)}
+                onClick={async () => {
+  try {
+    // Check if a conversation with this user already exists
+    const existing = conversations.find(c =>
+      c.members.some((m: any) => m.user_id === u.user_id)
+    );
+    if (existing) {
+      handleSelectConversation(existing);
+      return;
+    }
+
+    // Otherwise create a new one
+    const newConv = await createConversation([u.user_id]);
+    setConversations(prev => [newConv, ...prev]);
+    handleSelectConversation(newConv);
+  } catch (err) {
+    console.error("Error creating conversation:", err);
+    alert("Failed to start conversation.");
+  }
+}}
                 className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer"
               >
                 <span

@@ -18,13 +18,37 @@ interface Props {
   onClose: () => void;
 }
 
+// ✅ Safe Avatar with fallback
+function SafeAvatar({
+  src,
+  alt,
+  size = 40,
+}: {
+  src?: string;
+  alt?: string;
+  size?: number;
+}) {
+  const [error, setError] = useState(false);
+  const validSrc = !error && src ? src : "/default-avatar.png";
+  return (
+    <Image
+      src={validSrc}
+      alt={alt || "Profile"}
+      width={size}
+      height={size}
+      className="rounded-full object-cover border border-gray-200"
+      onError={() => setError(true)}
+    />
+  );
+}
+
 export default function NotificationModal({ onClose }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
 
-  // ✅ Fetch notifications
+  // Fetch notifications on mount
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -37,19 +61,16 @@ export default function NotificationModal({ onClose }: Props) {
         setLoading(false);
       }
     };
-
     fetchNotifications();
   }, []);
 
-  // ✅ Mark all as read
+  // Mark all as read
   const markAllAsRead = async () => {
     if (marking || !hasUnread) return;
     setMarking(true);
     try {
       await api.post("/notifications/mark-all-read");
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, is_read: true }))
-      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setHasUnread(false);
     } catch (err) {
       console.error("Failed to mark all as read:", err);
@@ -58,20 +79,23 @@ export default function NotificationModal({ onClose }: Props) {
     }
   };
 
-   const markNotificationAsRead = async (notification_id: string) => {
+  // Mark single notification as read
+  const markNotificationAsRead = async (notification_id: string) => {
     try {
-      // Optimistic UI update
       setNotifications((prev) =>
         prev.map((n) =>
           n.notification_id === notification_id ? { ...n, is_read: true } : n
         )
       );
       await api.put(`/notifications/${notification_id}/read`);
+      // update "unread" state
       setHasUnread((prev) =>
-        notifications.some((n) => !n.is_read && n.notification_id !== notification_id)
+        notifications.some(
+          (n) => !n.is_read && n.notification_id !== notification_id
+        )
       );
     } catch (err) {
-      console.error(`Failed to mark notification ${notification_id} as read:`, err);
+      console.error(`Failed to mark notification ${notification_id}:`, err);
     }
   };
 
@@ -115,28 +139,21 @@ export default function NotificationModal({ onClose }: Props) {
           ) : (
             notifications.map((notif) => (
               <div
-  key={notif.notification_id}
-  onClick={() => !notif.is_read && markNotificationAsRead(notif.notification_id)}
-  className={`flex items-center gap-3 p-3 rounded-lg mb-2 cursor-pointer transition ${
-    notif.is_read ? "bg-gray-50 hover:bg-gray-100" : "bg-blue-50 hover:bg-blue-100"
-  }`}
->
+                key={notif.notification_id}
+                onClick={() =>
+                  !notif.is_read && markNotificationAsRead(notif.notification_id)
+                }
+                className={`flex items-center gap-3 p-3 rounded-lg mb-2 cursor-pointer transition ${
+                  notif.is_read
+                    ? "bg-gray-50 hover:bg-gray-100"
+                    : "bg-blue-50 hover:bg-blue-100"
+                }`}
+              >
                 {/* Sender Avatar */}
-                {notif.sender_profile_photo_url ? (
-                  <Image
-                    src={notif.sender_profile_photo_url}
-                    alt="Profile"
-                    width={40}
-                    height={40}
-                    className="rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-gray-500 text-sm font-semibold">
-                      {notif.sender_username?.[0]?.toUpperCase() || "?"}
-                    </span>
-                  </div>
-                )}
+                <SafeAvatar
+                  src={notif.sender_profile_photo_url}
+                  alt={notif.sender_username}
+                />
 
                 {/* Notification Info */}
                 <div className="flex flex-col">

@@ -7,11 +7,9 @@ export interface ActiveUser {
   is_active: boolean;
 }
 
-// ✅ Fetch all active users (public endpoint)
 export const getActiveUsers = async (): Promise<ActiveUser[]> => {
   try {
-    // call correct endpoint since backend = /api/api/active-users
-    const res = await api.get<ActiveUser[]>("/api/active-users");
+    const res = await api.get<ActiveUser[]>("/active-users");
     return res.data;
   } catch (error) {
     console.error("❌ Error fetching active users:", error);
