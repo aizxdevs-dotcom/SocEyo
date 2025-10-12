@@ -4,12 +4,15 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { api } from "@/services/api";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { login, LoginData } from "@/services/auth";   // ✅ use central auth helper
 
+// -----------------------------------------------------------------------------
+// Schema validation
+// -----------------------------------------------------------------------------
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -17,6 +20,9 @@ const loginSchema = z.object({
 
 type LoginInputs = z.infer<typeof loginSchema>;
 
+// -----------------------------------------------------------------------------
+// Component
+// -----------------------------------------------------------------------------
 export default function LoginForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -27,13 +33,20 @@ export default function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<LoginInputs>({ resolver: zodResolver(loginSchema) });
 
+  // ---------------------------------------------------------------------------
+  // Handle login
+  // ---------------------------------------------------------------------------
   const onSubmit = async (values: LoginInputs) => {
     try {
-      const res = await api.post("/login", values);
-      localStorage.setItem("access_token", res.data.access_token);
+      // ✅ call unified login(), not raw api.post
+      await login(values as LoginData);
+
+      console.log("✅ Login successful, tokens & user_id stored");
+
+      // Redirect only after everything is saved
       router.push("/feed");
     } catch (err) {
-      console.error(err);
+      console.error("❌ Login failed:", err);
       alert("Invalid credentials. Please try again.");
     }
   };
@@ -48,7 +61,7 @@ export default function LoginForm() {
         error={errors.email?.message}
       />
 
-      {/* Password */}
+      {/* Password field */}
       <div className="relative">
         <Input
           label="Password"

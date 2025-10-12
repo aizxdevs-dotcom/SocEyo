@@ -1,30 +1,32 @@
 import { api } from "@/services/api";
 import { ActiveUser } from "@/services/active";
 
+/**
+ * Works with backend endpoints prefixed by /api in main.py
+ *   GET    /api/conversations
+ *   POST   /api/conversations
+ *   DELETE /api/conversations/{conversation_id}
+ */
+
 export interface Conversation {
   conversation_id: string;
   is_group: boolean;
   members: ActiveUser[];
 }
 
-// ✅ Fetch all conversations for current user
+// 💬 List user conversations
 export const listUserConversations = async (): Promise<Conversation[]> => {
-  try {
-    const res = await api.get<Conversation[]>("/api/conversations");
-    return res.data;
-  } catch (error) {
-    console.error("❌ Error fetching conversations:", error);
-    return [];
-  }
+  const res = await api.get<Conversation[]>("/conversations");
+  return res.data;
 };
 
-// ✅ Create new conversation
+// ➕ Create a new conversation
 export const createConversation = async (
   memberIds: string[],
   isGroup = true
 ): Promise<Conversation | null> => {
   try {
-    const res = await api.post<Conversation>("/api/conversations", {
+    const res = await api.post<Conversation>("/conversations", {
       member_ids: memberIds,
       is_group: isGroup,
     });
@@ -35,7 +37,8 @@ export const createConversation = async (
   }
 };
 
+// 🗑 Delete conversation
 export const deleteConversation = async (conversationId: string) => {
-  return api.delete(`/conversations/${conversationId}`);
+  const res = await api.delete(`/conversations/${conversationId}`);
+  return res.data;
 };
-

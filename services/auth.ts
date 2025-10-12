@@ -1,6 +1,6 @@
 import { api } from "./api";
 
-// --- Response data shapes ---
+// ------------------ Types ------------------
 export interface AuthResponse {
   access_token: string;
   token_type?: string;
@@ -18,59 +18,67 @@ export interface LoginData {
 }
 
 export interface UserProfile {
-  id: string;                       // local reference (backend `user_id`)
+  id: string;  // backend user_id
   username: string;
   email: string;
   bio?: string;
-  photo_url?: string | null;        // normalized alias of backend `profile_photo`
-  full_name?: string;               // backend key `full_name`
+  photo_url?: string | null;
+  full_name?: string;
 }
 
-// --- Auth & User Endpoints ---
+// ------------------ Auth endpoints ------------------
 
+// 🧾 Registration
 export const register = async (data: RegisterData): Promise<UserProfile> => {
   const res = await api.post<UserProfile>("/register", data);
   return res.data;
 };
 
+// 🔐 Login → store token + fetch ID from /me
 export const login = async (data: LoginData): Promise<AuthResponse> => {
   const res = await api.post<AuthResponse>("/login", data);
-  // Persist the access token for subsequent requests
+  const { access_token } = res.data;
+
+  // Save JWT for authenticated requests
+  localStorage.setItem("access_token", access_token);
+
+  // Immediately fetch profile to get legitimate user_id
+  try {
+    const me = await getMe();
+    localStorage.setItem("user_id", me.id);      // 👈 save for socket use
+    localStorage.setItem("username", me.username);
+  } catch (err) {
+    console.warn("⚠️ Could not fetch /me profile after login:", err);
+  }
+
+  return res.data;
+};
+
+// ♻️ Refresh token
+export const refreshAccessToken = async (): Promise<AuthResponse> => {
+  const res = await api.post<AuthResponse>("/refresh");
   localStorage.setItem("access_token", res.data.access_token);
   return res.data;
 };
 
-export const refreshAccessToken = async (): Promise<AuthResponse> => {
-  const res = await api.post<AuthResponse>("/refresh");
-  return res.data;
-};
-
-/**
- * ✅  Fetch the authenticated user's profile.
- * Converts backend keys to frontend‑friendly names.
- */
+// 👤 Fetch authenticated user's profile (used by login above)
 export const getMe = async (): Promise<UserProfile> => {
-  try {
-    const res = await api.get("/me");
-    const data = res.data as {
-      user_id: string;
-      username: string;
-      email: string;
-      bio?: string;
-      profile_photo?: string | null;
-      full_name?: string;
-    };
+  const res = await api.get("/me");
+  const data = res.data as {
+    user_id: string;
+    username: string;
+    email: string;
+    bio?: string;
+    profile_photo?: string | null;
+    full_name?: string;
+  };
 
-    return {
-      id: data.user_id,               // internal id alias
-      username: data.username,
-      email: data.email,
-      bio: data.bio,
-      photo_url: data.profile_photo,  // normalize key name
-      full_name: data.full_name,
-    };
-  } catch (error: any) {
-    console.error("Failed to fetch current user:", error);
-    throw error;
-  }
+  return {
+    id: data.user_id,
+    username: data.username,
+    email: data.email,
+    bio: data.bio,
+    photo_url: data.profile_photo,
+    full_name: data.full_name,
+  };
 };

@@ -58,6 +58,23 @@ export default function NotificationModal({ onClose }: Props) {
     }
   };
 
+   const markNotificationAsRead = async (notification_id: string) => {
+    try {
+      // Optimistic UI update
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.notification_id === notification_id ? { ...n, is_read: true } : n
+        )
+      );
+      await api.put(`/notifications/${notification_id}/read`);
+      setHasUnread((prev) =>
+        notifications.some((n) => !n.is_read && n.notification_id !== notification_id)
+      );
+    } catch (err) {
+      console.error(`Failed to mark notification ${notification_id} as read:`, err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-md mx-4 overflow-hidden animate-fadeIn">
@@ -98,11 +115,12 @@ export default function NotificationModal({ onClose }: Props) {
           ) : (
             notifications.map((notif) => (
               <div
-                key={notif.notification_id}
-                className={`flex items-center gap-3 p-3 rounded-lg mb-2 ${
-                  notif.is_read ? "bg-gray-50" : "bg-blue-50"
-                }`}
-              >
+  key={notif.notification_id}
+  onClick={() => !notif.is_read && markNotificationAsRead(notif.notification_id)}
+  className={`flex items-center gap-3 p-3 rounded-lg mb-2 cursor-pointer transition ${
+    notif.is_read ? "bg-gray-50 hover:bg-gray-100" : "bg-blue-50 hover:bg-blue-100"
+  }`}
+>
                 {/* Sender Avatar */}
                 {notif.sender_profile_photo_url ? (
                   <Image

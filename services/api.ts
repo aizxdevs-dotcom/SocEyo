@@ -2,12 +2,16 @@
 
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL;
+// -----------------------------------------------------------------------------
+// 🌍 Base URL for your deployed API
+// -----------------------------------------------------------------------------
+const baseURL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://soceyo.onrender.com";
 
-// ✅ Create unified Axios instance
+// ✅ Single Axios instance
 export const api = axios.create({
   baseURL,
-  withCredentials: true, // allow sending cookies (useful for refresh JWT cookies)
+  withCredentials: true, // allow JWT refresh-token cookies
 });
 
 // -----------------------------------------------------------------------------
@@ -15,6 +19,7 @@ export const api = axios.create({
 // -----------------------------------------------------------------------------
 api.interceptors.request.use(
   (config) => {
+    // only run in browser
     if (typeof window !== "undefined") {
       const accessToken = localStorage.getItem("access_token");
       if (accessToken) {
@@ -23,7 +28,7 @@ api.interceptors.request.use(
       }
     }
 
-    // ✅ Skip JSON header for FormData
+    // 🧾 Skip JSON header for FormData
     const isFormData = config.data instanceof FormData;
     if (!isFormData) {
       config.headers = config.headers || new axios.AxiosHeaders();
@@ -38,7 +43,7 @@ api.interceptors.request.use(
 );
 
 // -----------------------------------------------------------------------------
-// 🔁 RESPONSE INTERCEPTOR – auto refresh tokens on 401
+// 🔁 RESPONSE INTERCEPTOR – auto-refresh access tokens on 401
 // -----------------------------------------------------------------------------
 let isRefreshing = false;
 let failedQueue: {
@@ -46,10 +51,6 @@ let failedQueue: {
   reject: (err: any) => void;
 }[] = [];
 
-/**
- * Queues requests that arrive during a refresh cycle
- * so we don't fire multiple `/refresh` requests at once.
- */
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) prom.reject(error);
@@ -59,14 +60,13 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 api.interceptors.response.use(
-  (res) => res,
+  (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
     };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Prevent multiple concurrent refresh calls
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({
@@ -84,7 +84,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshResponse = await api.post("/refresh");
+        const refreshResponse = await api.post("/api/refresh"); // ✅ backend route has /api prefix
         const newAccess = (refreshResponse.data as any).access_token;
 
         // Persist new token
@@ -94,7 +94,7 @@ api.interceptors.response.use(
         processQueue(null, newAccess);
         isRefreshing = false;
 
-        // 🔄 Retry failed original request
+        // 🔄 retry original request
         if (!originalRequest.headers) originalRequest.headers = {};
         originalRequest.headers.Authorization = `Bearer ${newAccess}`;
         return api(originalRequest);
@@ -102,9 +102,9 @@ api.interceptors.response.use(
         processQueue(err, null);
         isRefreshing = false;
 
-        // ❌ Token expired, redirect to login
         if (typeof window !== "undefined") {
           localStorage.removeItem("access_token");
+          localStorage.removeItem("user_id");
           window.location.href = "/login";
         }
         return Promise.reject(err);
