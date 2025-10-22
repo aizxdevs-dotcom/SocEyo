@@ -4,18 +4,20 @@ import { useState } from "react";
 import { createPost } from "@/services/posts";
 import Button from "@/components/ui/Button";
 
-export default function CreatePostForm() {
+interface CreatePostFormProps {
+  onSuccess?: () => void;   // 👈 notify parent when post created
+}
+
+export default function CreatePostForm({ onSuccess }: CreatePostFormProps) {
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Handle multi‑file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files ? Array.from(e.target.files) : [];
     setFiles(selected);
   };
 
-  // --- Submit logic ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim() && files.length === 0) {
@@ -25,15 +27,17 @@ export default function CreatePostForm() {
 
     try {
       setLoading(true);
-      // Send all files to backend
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
       formData.append("description", description);
 
-      await createPost(formData); // see note below about modified createPost
+      await createPost(formData);
+
       setDescription("");
       setFiles([]);
-      alert("Your post has been shared!");
+
+      // 👇 trigger animation at parent
+      onSuccess?.();
     } catch (err) {
       console.error(err);
       alert("Failed to create post, please try again.");
@@ -45,7 +49,6 @@ export default function CreatePostForm() {
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 sm:p-6 max-w-2xl mx-auto">
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* ---- Description ---- */}
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -53,12 +56,12 @@ export default function CreatePostForm() {
           className="w-full min-h-[100px] resize-none border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-md p-3 text-gray-900 text-sm sm:text-base"
         />
 
-        {/* ---- File Upload ---- */}
+        {/* ---- Uploader + Button ---- */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
           <input
             type="file"
             accept="image/*,video/*"
-            multiple                  // ✅ allow multiple file selections
+            multiple
             onChange={handleFileChange}
             className="block w-full sm:w-auto text-sm text-gray-600
                        file:mr-3 file:py-2 file:px-3
@@ -89,19 +92,16 @@ export default function CreatePostForm() {
             }`}
           >
             {files.map((file, idx) => {
-              const isImage = file.type.startsWith("image/");
-              const isVideo = file.type.startsWith("video/");
               const previewUrl = URL.createObjectURL(file);
               return (
                 <div key={idx} className="relative rounded-md overflow-hidden">
-                  {isImage && (
+                  {file.type.startsWith("image/") ? (
                     <img
                       src={previewUrl}
                       alt="preview"
                       className="w-full h-36 object-cover rounded-md border border-gray-200"
                     />
-                  )}
-                  {isVideo && (
+                  ) : (
                     <video
                       src={previewUrl}
                       className="w-full h-36 object-cover rounded-md border border-gray-200"

@@ -8,6 +8,7 @@ import { getMe } from "@/services/auth";
 import type { Post } from "@/services/posts";
 import { deletePost, updatePost } from "@/services/posts";
 import { EllipsisVertical, Pencil, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface UserProfile {
   id: string;
@@ -16,16 +17,22 @@ interface UserProfile {
   bio?: string;
   photo_url?: string | null;
 }
-
 interface PostCardProps {
   post: Post;
 }
 
 export default function PostCard({ post }: PostCardProps) {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [toast, setToast] = useState<{ show: boolean; message: string }>({
+    show: false,
+    message: "",
+  });
+  const [confirmOpen, setConfirmOpen] = useState(false); // 👈 new state for delete-confirmation modal
   const [showComments, setShowComments] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
-  const [lightbox, setLightbox] = useState<{ url: string; type: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; type: string } | null>(
+    null
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newDescription, setNewDescription] = useState(post.description);
@@ -42,17 +49,25 @@ export default function PostCard({ post }: PostCardProps) {
     fetchUser();
   }, []);
 
+  useEffect(() => {
+    if (!toast.show) return;
+    const t = setTimeout(() => setToast({ show: false, message: "" }), 2500);
+    return () => clearTimeout(t);
+  }, [toast.show]);
+
   const imageFiles = post.files?.filter((f) => f.file_type.startsWith("image/"));
   const videoFiles = post.files?.filter((f) => f.file_type.startsWith("video/"));
 
   const openLightbox = (url: string, type: string) => setLightbox({ url, type });
   const closeLightbox = () => setLightbox(null);
 
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this post?")) return;
+  // --- Delete with a modal confirmation ---
+  const handleDeleteConfirmed = async () => {
     try {
       await deletePost(post.post_id);
-      window.location.reload();
+      setConfirmOpen(false);
+      setToast({ show: true, message: "Post deleted successfully!" });
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
       console.error("Delete failed:", err);
       alert("Failed to delete post.");
@@ -63,14 +78,14 @@ export default function PostCard({ post }: PostCardProps) {
     try {
       await updatePost(post.post_id, newDescription);
       setIsEditing(false);
-      window.location.reload();
+      setToast({ show: true, message: "Post updated successfully!" });
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
       console.error("Update failed:", err);
       alert("Failed to update post.");
     }
   };
 
-  // --- Reusable media grid ---
   const renderMediaGrid = (media: any[], type: "image" | "video") => {
     if (media.length === 1) {
       const file = media[0];
@@ -90,7 +105,6 @@ export default function PostCard({ post }: PostCardProps) {
               className="w-full max-h-96 rounded-md cursor-pointer hover:opacity-90 transition"
             >
               <source src={file.url} type={file.file_type} />
-              Your browser does not support the video tag.
             </video>
           )}
         </div>
@@ -124,7 +138,6 @@ export default function PostCard({ post }: PostCardProps) {
       );
     }
 
-    // For 3 or more media files, show a Facebook-style collage
     return (
       <div className="grid gap-2 mb-4">
         <div className="w-full rounded-md overflow-hidden">
@@ -145,7 +158,11 @@ export default function PostCard({ post }: PostCardProps) {
             </video>
           )}
         </div>
-        <div className={`grid ${media.length === 3 ? "grid-cols-2" : "grid-cols-3"} gap-2`}>
+        <div
+          className={`grid ${
+            media.length === 3 ? "grid-cols-2" : "grid-cols-3"
+          } gap-2`}
+        >
           {media.slice(1, type === "image" ? 4 : 4).map((file, idx) => (
             <div key={file.file_id} className="relative">
               {type === "image" ? (
@@ -178,8 +195,32 @@ export default function PostCard({ post }: PostCardProps) {
 
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 sm:p-5 mb-4 transition hover:shadow-md break-words">
+      {/* Toast */}
+      <AnimatePresence>
+        {toast.show && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-2 z-50"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="font-medium">{toast.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 sm:p-5 mb-4 transition hover:shadow-md break-words">
         {/* ---- Author header ---- */}
         <div className="flex flex-wrap sm:flex-nowrap items-start justify-between mb-3 sm:mb-4">
           <div className="flex items-center space-x-3">
@@ -198,7 +239,7 @@ export default function PostCard({ post }: PostCardProps) {
             </div>
           </div>
 
-          {/* ---- three‑dot menu ---- */}
+          {/* ---- three-dot menu ---- */}
           <div className="relative mt-2 sm:mt-0">
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -218,7 +259,10 @@ export default function PostCard({ post }: PostCardProps) {
                   <Pencil className="w-4 h-4 mr-2" /> Edit
                 </button>
                 <button
-                  onClick={handleDelete}
+                  onClick={() => {
+                    setConfirmOpen(true);
+                    setMenuOpen(false);
+                  }}
                   className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
                 >
                   <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -260,7 +304,7 @@ export default function PostCard({ post }: PostCardProps) {
           )
         )}
 
-        {/* ---- Images and Videos ---- */}
+        {/* ---- Images/Videos ---- */}
         {imageFiles?.length > 0 && renderMediaGrid(imageFiles, "image")}
         {videoFiles?.length > 0 && renderMediaGrid(videoFiles, "video")}
 
@@ -283,21 +327,19 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
       </div>
 
-      {/* ---- Comment Modal ---- */}
+      {/* ---- Comment & Reaction Modals ---- */}
       <CommentModal
         postId={post.post_id}
         isOpen={showComments}
         onClose={() => setShowComments(false)}
       />
-
-      {/* ---- Reaction Modal ---- */}
       <ReactionModal
         postId={post.post_id}
         isOpen={showReactions}
         onClose={() => setShowReactions(false)}
       />
 
-      {/* ---- Lightbox Modal ---- */}
+      {/* ---- Lightbox ---- */}
       {lightbox && (
         <div
           onClick={closeLightbox}
@@ -310,7 +352,6 @@ export default function PostCard({ post }: PostCardProps) {
             >
               &times;
             </button>
-
             {lightbox.type === "image" ? (
               <img
                 src={lightbox.url}
@@ -328,6 +369,47 @@ export default function PostCard({ post }: PostCardProps) {
           </div>
         </div>
       )}
+
+      {/* ---- Delete Confirm Modal ---- */}
+      <AnimatePresence>
+        {confirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="bg-white rounded-lg shadow-lg px-6 pt-6 pb-5 max-w-sm w-full text-center"
+            >
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Delete this post?
+              </h3>
+              <p className="text-sm text-gray-600 mb-5">
+                Are you sure you want to delete this post? This action cannot be undone.
+              </p>
+              <div className="flex justify-center gap-3">
+                <Button
+                  onClick={() => setConfirmOpen(false)}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2"
+                >
+                  No
+                </Button>
+                <Button
+                  onClick={handleDeleteConfirmed}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2"
+                >
+                  Yes, Delete
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -8,10 +8,10 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
-import { login, LoginData } from "@/services/auth";   // ✅ use central auth helper
+import { login, LoginData } from "@/services/auth";
 
 // -----------------------------------------------------------------------------
-// Schema validation
+// Schema
 // -----------------------------------------------------------------------------
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -23,7 +23,12 @@ type LoginInputs = z.infer<typeof loginSchema>;
 // -----------------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------------
-export default function LoginForm() {
+interface LoginFormProps {
+  /** optional callback fired after successful login */
+  onSuccess?: () => void;
+}
+
+export default function LoginForm({ onSuccess }: LoginFormProps) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -33,17 +38,10 @@ export default function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<LoginInputs>({ resolver: zodResolver(loginSchema) });
 
-  // ---------------------------------------------------------------------------
-  // Handle login
-  // ---------------------------------------------------------------------------
   const onSubmit = async (values: LoginInputs) => {
     try {
-      // ✅ call unified login(), not raw api.post
       await login(values as LoginData);
-
-      console.log("✅ Login successful, tokens & user_id stored");
-
-      // Redirect only after everything is saved
+      onSuccess?.();                     // 👈 notify parent for animation
       router.push("/feed");
     } catch (err) {
       console.error("❌ Login failed:", err);
@@ -61,7 +59,6 @@ export default function LoginForm() {
         error={errors.email?.message}
       />
 
-      {/* Password field */}
       <div className="relative">
         <Input
           label="Password"

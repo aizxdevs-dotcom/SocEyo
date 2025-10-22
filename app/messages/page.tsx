@@ -65,6 +65,11 @@ export default function MessagePage() {
   const wsRef = useRef<WebSocket | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const editFileInputRef = useRef<HTMLInputElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+useEffect(() => {
+  bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+}, [messages]);
 
   // Load data
   useEffect(() => {
@@ -83,6 +88,36 @@ export default function MessagePage() {
     fetchAll();
     
   }, []);
+
+  // 🟢 Real-time active user updates (quiet 5s polling)
+useEffect(() => {
+  let stopped = false;
+
+  const refreshActive = async () => {
+    try {
+      const latest = await getActiveUsers();
+      // Only update if something actually changed — prevents flicker
+      setActiveUsers(prev => {
+        const prevIds = prev.map(u => u.user_id).sort().join(',');
+        const newIds = latest.map(u => u.user_id).sort().join(',');
+        return prevIds === newIds ? prev : latest;
+      });
+    } catch (err) {
+      console.error("Failed to refresh active users:", err);
+    }
+  };
+
+  // Run once immediately and then every 5 seconds
+  refreshActive();
+  const interval = setInterval(() => {
+    if (!stopped) refreshActive();
+  }, 5000);
+
+  return () => {
+    stopped = true;
+    clearInterval(interval);
+  };
+}, []);
 
   const fetchMessages = async (conversationId: string) => {
     try {
@@ -502,6 +537,7 @@ export default function MessagePage() {
                 </div>
               );
             })}
+
           </div>
 
           {/* File preview before send */}

@@ -10,6 +10,9 @@ import Button from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
+// -----------------------------------------------------------------------------
+// Schema
+// -----------------------------------------------------------------------------
 const registerSchema = z
   .object({
     username: z.string().min(3, "Username must be at least 3 characters"),
@@ -24,7 +27,15 @@ const registerSchema = z
 
 type RegisterInputs = z.infer<typeof registerSchema>;
 
-export default function RegisterForm() {
+// -----------------------------------------------------------------------------
+// Component
+// -----------------------------------------------------------------------------
+interface RegisterFormProps {
+  /** optional callback fired after successful registration */
+  onSuccess?: () => void;
+}
+
+export default function RegisterForm({ onSuccess }: RegisterFormProps) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -34,9 +45,7 @@ export default function RegisterForm() {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm<RegisterInputs>({
-    resolver: zodResolver(registerSchema),
-  });
+  } = useForm<RegisterInputs>({ resolver: zodResolver(registerSchema) });
 
   const onSubmit = async (values: RegisterInputs) => {
     try {
@@ -46,11 +55,13 @@ export default function RegisterForm() {
         password: values.password,
       });
 
-      alert("Registered successfully! Please log in.");
+      onSuccess?.();              // 👈 trigger animation on success
       reset();
-      router.push("/login");
-    } catch (err: any) {
-      console.error(err);
+
+      // Wait shortly for animation, then navigate
+      setTimeout(() => router.push("/login"), 2000);
+    } catch (err) {
+      console.error("❌ Registration failed:", err);
       alert("Registration failed. Please try again.");
     }
   };
@@ -120,7 +131,6 @@ export default function RegisterForm() {
         </button>
       </div>
 
-      {/* Button */}
       <div className="pt-2">
         <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
           {isSubmitting ? "Creating Account…" : "Register"}
