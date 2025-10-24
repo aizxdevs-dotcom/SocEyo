@@ -1,10 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import ClientMessages from "./ClientMessages";
 
 export default function Page() {
-  // This page is a client component and simply mounts the heavy client-only chat UI.
-  // Keeping it client avoids server prerender / useSearchParams errors.
-  return <ClientMessages />;
+  // Wrap the client chat in Suspense to satisfy Next's requirement that
+  // `useSearchParams()` (used in the client chat) is inside a Suspense boundary.
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading chat…</div>}>
+      <ClientMessages />
+    </Suspense>
+  );
 }
