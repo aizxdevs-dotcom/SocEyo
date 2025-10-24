@@ -7,7 +7,8 @@ import clsx from "clsx";
 interface AvatarProps {
   src?: string | null;
   alt?: string;
-  size?: number;
+  name?: string; // For generating initials
+  size?: "sm" | "md" | "lg" | number;
   fallback?: string; // e.g. initials: "AB"
   className?: string;
 }
@@ -15,38 +16,62 @@ interface AvatarProps {
 export default function Avatar({
   src,
   alt = "avatar",
+  name,
   size = 40,
   fallback,
   className,
 }: AvatarProps) {
   const [imgError, setImgError] = React.useState(false);
 
+  // Convert size to pixels
+  const sizeMap = {
+    sm: 32,
+    md: 48,
+    lg: 64,
+  };
+  
+  const pixelSize = typeof size === "string" ? sizeMap[size] : size;
+
+  // Generate initials from name if no fallback provided
+  const getInitials = () => {
+    if (fallback) return fallback;
+    if (!name) return null;
+    
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const initials = getInitials();
+
   return (
     <div
       className={clsx(
-        "flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden text-gray-700 dark:text-gray-200 select-none",
+        "flex items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-purple-500 overflow-hidden text-white select-none font-semibold",
         className
       )}
-      style={{ width: size, height: size }}
+      style={{ width: pixelSize, height: pixelSize, minWidth: pixelSize, minHeight: pixelSize }}
     >
       {src && !imgError ? (
         <Image
           src={src}
-          alt={alt}
-          width={size}
-          height={size}
+          alt={alt || name || "avatar"}
+          width={pixelSize}
+          height={pixelSize}
           onError={() => setImgError(true)}
           className="object-cover w-full h-full"
         />
-      ) : fallback ? (
-        <span className="text-sm font-semibold">{fallback}</span>
+      ) : initials ? (
+        <span style={{ fontSize: pixelSize * 0.4 }}>{initials}</span>
       ) : (
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
           fill="currentColor"
-          width={size * 0.7}
-          height={size * 0.7}
+          width={pixelSize * 0.6}
+          height={pixelSize * 0.6}
         >
           <path
             fillRule="evenodd"

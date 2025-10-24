@@ -82,3 +82,35 @@ export const getMe = async (): Promise<UserProfile> => {
     full_name: data.full_name,
   };
 };
+
+// ------------------ Email Verification ------------------
+
+// 🔐 Verify email with OTP
+export const verifyEmail = async (email: string, otp_code: string): Promise<{ message: string }> => {
+  const res = await api.post("/verify-email", { email, otp_code });
+  return res.data;
+};
+
+// ♻️ Resend OTP code
+export const resendOTP = async (email: string): Promise<{ message: string }> => {
+  const res = await api.post("/resend-otp", { email });
+  return res.data;
+};
+
+// ------------------ Password Reset ------------------
+
+// 🔒 Request password reset (sends OTP)
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  const res = await api.post("/forgot-password", { email });
+  return res.data;
+};
+
+// 🔑 Reset password with OTP
+export const resetPassword = async (
+  email: string,
+  otp_code: string,
+  new_password: string
+): Promise<{ message: string }> => {
+  const res = await api.post("/reset-password", { email, otp_code, new_password });
+  return res.data;
+};

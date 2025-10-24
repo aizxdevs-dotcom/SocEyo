@@ -13,12 +13,20 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 // -----------------------------------------------------------------------------
 // Schema
 // -----------------------------------------------------------------------------
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
 const registerSchema = z
   .object({
     username: z.string().min(3, "Username must be at least 3 characters"),
     email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z.string().min(6, "Please confirm your password"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(passwordRegex, {
+        message:
+          "Password must include uppercase, lowercase, number and symbol",
+      }),
+    confirmPassword: z.string().min(8, "Please confirm your password"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -49,7 +57,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
 
   const onSubmit = async (values: RegisterInputs) => {
     try {
-      await api.post("/register", {
+      const response = await api.post("/register", {
         username: values.username,
         email: values.email,
         password: values.password,
@@ -58,11 +66,14 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
       onSuccess?.();              // 👈 trigger animation on success
       reset();
 
-      // Wait shortly for animation, then navigate
-      setTimeout(() => router.push("/login"), 2000);
-    } catch (err) {
+      // Redirect to email verification page
+      setTimeout(() => {
+        router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
+      }, 1500);
+    } catch (err: any) {
       console.error("❌ Registration failed:", err);
-      alert("Registration failed. Please try again.");
+      const errorMsg = err.response?.data?.detail || "Registration failed. Please try again.";
+      alert(errorMsg);
     }
   };
 
@@ -107,6 +118,11 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
         </button>
       </div>
 
+      <div className="text-xs text-gray-500">
+        Password must be at least 8 characters and include an uppercase letter, a
+        lowercase letter, a number, and a symbol.
+      </div>
+
       {/* Confirm password */}
       <div className="relative">
         <Input
@@ -133,7 +149,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
 
       <div className="pt-2">
         <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
-          {isSubmitting ? "Creating Account…" : "Register"}
+          {isSubmitting ? "Creating Account…" : "Signup"}
         </Button>
       </div>
     </form>

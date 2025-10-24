@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Button from "@/components/ui/Button";
 import PostCard from "@/components/Feed/PostCard";
+import AccountSettingsModal from "@/components/ui/AccountSettingsModal";
 import {
   updateUser,
   uploadProfilePhoto,
@@ -22,6 +25,7 @@ interface User {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [username, setUsername] = useState("");
@@ -29,6 +33,9 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Load user and posts
   useEffect(() => {
@@ -97,17 +104,102 @@ export default function ProfilePage() {
   ? `${process.env.NEXT_PUBLIC_API_URL || ""}${user.photo_url}?t=${Date.now()}`
   : "/default-avatar.png";
 
+  const handleDeleteSuccess = () => {
+    setShowSettings(false);
+    setSuccessMessage("Account deleted successfully");
+    setShowSuccessToast(true);
+    
+    // Clear auth and redirect after toast
+    setTimeout(() => {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      router.push("/");
+    }, 2000);
+  };
+
+  const handlePasswordUpdateSuccess = () => {
+    setSuccessMessage("Password updated successfully");
+    setShowSuccessToast(true);
+    setShowSettings(false);
+    setTimeout(() => setShowSuccessToast(false), 3000);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-white text-gray-900">
+    <div className="min-h-screen flex flex-col bg-white text-gray-900 relative">
       <Navbar />
+
+      {/* Success Toast */}
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.35 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-2 z-50"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span className="font-medium">{successMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Account Settings Modal */}
+      {user && (
+        <AccountSettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          userId={user.id}
+          onDeleteSuccess={handleDeleteSuccess}
+          onPasswordUpdateSuccess={handlePasswordUpdateSuccess}
+        />
+      )}
 
       <main className="flex-grow px-4 sm:px-6 py-8 sm:py-10">
         <div className="max-w-3xl mx-auto space-y-8 sm:space-y-10">
           {/* ---------- Profile Settings ---------- */}
           <section>
-            <h1 className="text-xl sm:text-2xl font-semibold mb-5 sm:mb-6">
-              Profile 
-            </h1>
+            <div className="flex items-center justify-between mb-5 sm:mb-6">
+              <h1 className="text-xl sm:text-2xl font-semibold">Profile</h1>
+              <Button
+                onClick={() => setShowSettings(true)}
+                className="bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white px-4 py-2 text-sm font-medium flex items-center gap-2"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                Settings
+              </Button>
+            </div>
 
             <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 sm:p-6 space-y-6">
               {/* Profile Photo */}

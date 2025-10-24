@@ -36,6 +36,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newDescription, setNewDescription] = useState(post.description);
+  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -195,30 +196,8 @@ export default function PostCard({ post }: PostCardProps) {
 
   return (
     <>
-      {/* Toast */}
-      <AnimatePresence>
-        {toast.show && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-2 z-50"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="font-medium">{toast.message}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+     
 
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 sm:p-5 mb-4 transition hover:shadow-md break-words">
         {/* ---- Author header ---- */}
@@ -289,7 +268,7 @@ export default function PostCard({ post }: PostCardProps) {
                 Cancel
               </Button>
               <Button
-                onClick={handleUpdate}
+                onClick={() => setUpdateConfirmOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-1 text-sm"
               >
                 Save
@@ -369,6 +348,48 @@ export default function PostCard({ post }: PostCardProps) {
           </div>
         </div>
       )}
+
+      {/* ---- Update Confirm Modal ---- */}
+      <AnimatePresence>
+        {updateConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-lg shadow-lg px-6 pt-6 pb-5 max-w-sm w-full text-center"
+            >
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Save changes?</h3>
+              <p className="text-sm text-gray-600 mb-5">
+                Are you sure you want to update this post's description and attached files? This will save your changes.
+              </p>
+              <div className="flex justify-center gap-3">
+                <Button
+                  onClick={() => setUpdateConfirmOpen(false)}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setUpdateConfirmOpen(false);
+                    await handleUpdate();
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2"
+                >
+                  Yes, Save
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ---- Delete Confirm Modal ---- */}
       <AnimatePresence>

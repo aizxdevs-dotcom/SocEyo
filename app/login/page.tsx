@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import LoginForm from "@/components/forms/LoginForm";
 import { motion, AnimatePresence } from "framer-motion";
+import Button from "@/components/ui/Button";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [showSuccess, setShowSuccess] = useState(false);
@@ -13,6 +15,29 @@ export default function LoginPage() {
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 2500);
   };
+
+  const router = useRouter();
+  const [showVerifyDialog, setShowVerifyDialog] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(3);
+
+  const handleEmailNotVerified = (email: string) => {
+    setPendingEmail(email);
+    setCountdown(3);
+    setShowVerifyDialog(true);
+  };
+
+  useEffect(() => {
+    if (!showVerifyDialog) return;
+    if (countdown <= 0) {
+      // Redirect to verification page
+      const q = pendingEmail ? `?email=${encodeURIComponent(pendingEmail)}` : "";
+      router.push(`/verify-email${q}`);
+      return;
+    }
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [showVerifyDialog, countdown, pendingEmail, router]);
 
   return (
     <div className="relative min-h-screen flex flex-col bg-white text-gray-900">
@@ -53,7 +78,7 @@ export default function LoginPage() {
           </h1>
 
           {/* Login Form, pass handler down */}
-          <LoginForm onSuccess={handleLoginSuccess} />
+          <LoginForm onSuccess={handleLoginSuccess} onEmailNotVerified={handleEmailNotVerified} />
 
           {/* Link to register */}
           <div className="mt-6 text-center text-sm sm:text-base text-gray-600">
@@ -72,6 +97,40 @@ export default function LoginPage() {
       <footer className="py-4 text-center text-xs sm:text-sm text-gray-500 border-t border-gray-200">
         © {new Date().getFullYear()} Soceyo. All rights reserved.
       </footer>
+
+      {/* Verification dialog shown when login reports unverified email (simple white card, not glass) */}
+      {showVerifyDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowVerifyDialog(false)}
+          />
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.25 }}
+            className="relative w-full max-w-md bg-white rounded-lg shadow-xl p-6 sm:p-8 z-10"
+          >
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">Email not verified</h3>
+            <p className="text-sm text-gray-700 mb-4">
+              Your email <strong className="font-medium">{pendingEmail}</strong> is not verified yet. We will
+              redirect you to the verification page in <span className="font-semibold">{countdown}</span>{' '}
+              second{countdown !== 1 ? 's' : ''}.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-end">
+              <Button variant="secondary" onClick={() => setShowVerifyDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => router.push(`/verify-email?email=${encodeURIComponent(pendingEmail || '')}`)}>
+                Go to verification now
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

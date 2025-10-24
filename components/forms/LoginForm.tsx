@@ -13,9 +13,17 @@ import { login, LoginData } from "@/services/auth";
 // -----------------------------------------------------------------------------
 // Schema
 // -----------------------------------------------------------------------------
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(passwordRegex, {
+      message:
+        "Password must include uppercase, lowercase, number and symbol",
+    }),
 });
 
 type LoginInputs = z.infer<typeof loginSchema>;
@@ -26,11 +34,14 @@ type LoginInputs = z.infer<typeof loginSchema>;
 interface LoginFormProps {
   /** optional callback fired after successful login */
   onSuccess?: () => void;
+  /** optional callback when server reports email not verified; parent can show a dialog and handle redirect */
+  onEmailNotVerified?: (email: string) => void;
 }
 
-export default function LoginForm({ onSuccess }: LoginFormProps) {
+export default function LoginForm({ onSuccess, onEmailNotVerified }: LoginFormProps) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [notFound, setNotFound] = useState<string | null>(null);
 
   const {
     register,
@@ -43,14 +54,46 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       await login(values as LoginData);
       onSuccess?.();                     // 👈 notify parent for animation
       router.push("/feed");
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Login failed:", err);
-      alert("Invalid credentials. Please try again.");
+      setNotFound(null);
+      
+      // Check if error is due to unverified email
+      // Check if error is due to user not found
+      if (err.response?.status === 404) {
+        setNotFound("User not found. Please register first.");
+        return;
+      }
+
+      if (err.response?.status === 403 && err.response?.data?.detail?.includes("not verified")) {
+        // Prefer parent-controlled flow if provided (so parent can show a nice dialog)
+        if (onEmailNotVerified) {
+          onEmailNotVerified(values.email);
+        } else {
+          alert("Email not verified. Redirecting to verification page...");
+          setTimeout(() => {
+            router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
+          }, 1000);
+        }
+        return;
+      }
+      // Show generic invalid credentials for 401, or other errors
+      if (err.response?.status === 401) {
+        setNotFound("Invalid credentials. Please try again.");
+        return;
+      }
+
+      alert(err.response?.data?.detail || "Invalid credentials. Please try again.");
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {notFound && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {notFound}
+        </div>
+      )}
       <Input
         label="Email"
         type="email"
@@ -79,6 +122,16 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           ) : (
             <EyeIcon className="h-5 w-5" />
           )}
+        </button>
+      </div>
+
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={() => router.push("/forgot-password")}
+          className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+        >
+          Forgot password?
         </button>
       </div>
 

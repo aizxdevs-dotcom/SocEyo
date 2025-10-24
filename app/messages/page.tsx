@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { getActiveUsers } from "@/services/active";
 import {
   listUserConversations,
@@ -48,6 +49,7 @@ interface Message {
 }
 
 export default function MessagePage() {
+  const searchParams = useSearchParams();
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -60,16 +62,60 @@ export default function MessagePage() {
   const [editMessageContent, setEditMessageContent] = useState("");
   const [editFile, setEditFile] = useState<File | null>(null);
   const [editPreview, setEditPreview] = useState<string | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id?: string }>({ open: false });
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
+  const [removeEditFileConfirm, setRemoveEditFileConfirm] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const editFileInputRef = useRef<HTMLInputElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-useEffect(() => {
-  bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-}, [messages]);
+  // Helper: sort messages by timestamp ascending and remove duplicates by message_id
+  const sortAndUniqueMessages = (msgs: Message[]) => {
+    const map = new Map<string, Message>();
+    // keep last occurrence for each message_id
+    msgs.forEach((m) => map.set(m.message_id, m));
+    const unique = Array.from(map.values());
+    unique.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return unique;
+  };
+
+  
+  // Smart auto-scroll
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [newMessageCount, setNewMessageCount] = useState(0);
+  const prevMessagesRef = useRef<Message[]>([]);
+  
+  const handleMessagesScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const near = distanceFromBottom < 150; // px threshold
+    setIsNearBottom(near);
+    if (near) setNewMessageCount(0);
+  };
+  
+  // When messages change, decide whether to auto-scroll or show indicator
+  useEffect(() => {
+    const prev = prevMessagesRef.current;
+    const added = messages.length > prev.length;
+    // Update stored messages regardless
+    prevMessagesRef.current = messages;
+  
+    if (!added) return;
+  
+    if (isNearBottom) {
+      // scroll to bottom smoothly
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      // show new message count indicator
+      setNewMessageCount((n) => n + (messages.length - prev.length));
+    }
+  }, [messages, isNearBottom]);
 
   // Load data
   useEffect(() => {
@@ -88,6 +134,36 @@ useEffect(() => {
     fetchAll();
     
   }, []);
+
+  // Handle userId parameter from URL (e.g., from friends page message button)
+  useEffect(() => {
+    const userId = searchParams.get("userId");
+    if (!userId || conversations.length === 0 || isCreatingConversation) return;
+
+    // Check if conversation with this user already exists
+    const existingConv = conversations.find((conv) =>
+      conv.members.some((m) => m.user_id === userId)
+    );
+
+    if (existingConv) {
+      // Select existing conversation
+      handleSelectConversation(existingConv);
+    } else {
+      // Create new conversation with this user
+      setIsCreatingConversation(true);
+      createConversation([userId])
+        .then((newConv) => {
+          setConversations((prev) => [newConv, ...prev]);
+          handleSelectConversation(newConv);
+        })
+        .catch((err) => {
+          console.error("Failed to create conversation:", err);
+        })
+        .finally(() => {
+          setIsCreatingConversation(false);
+        });
+    }
+  }, [searchParams, conversations, isCreatingConversation]);
 
   // 🟢 Real-time active user updates (quiet 5s polling)
 useEffect(() => {
@@ -122,12 +198,16 @@ useEffect(() => {
   const fetchMessages = async (conversationId: string) => {
     try {
       const data = await getConversationMessages(conversationId);
-      const msgWithStatus = data.map((m: Message) => ({
+      // Sort messages by timestamp ascending (oldest first, like Facebook Messenger)
+      const sortedData = [...data].sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      const msgWithStatus = sortedData.map((m: Message) => ({
         ...m,
         status:
-          m.sender_id === localStorage.getItem("user_id") ? "seen" : undefined,
+          m.sender_id === localStorage.getItem("user_id") ? ("seen" as const) : undefined,
       }));
-      setMessages(msgWithStatus);
+  setMessages((prev) => sortAndUniqueMessages([...prev, ...msgWithStatus]));
     } catch (e) {
       console.error(e);
     }
@@ -152,17 +232,24 @@ useEffect(() => {
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (!data.error)
-          setMessages((prev) => [
-            ...prev,
-            {
-              ...data,
-              status:
-                data.sender_id === localStorage.getItem("user_id")
-                  ? "sent"
-                  : undefined,
-            },
-          ]);
+        if (!data.error) {
+          const incoming: Message = {
+            ...data,
+            status:
+              data.sender_id === localStorage.getItem("user_id")
+                ? ("sent" as const)
+                : undefined,
+          };
+          setMessages((prev) => {
+            const exists = prev.find((m) => m.message_id === incoming.message_id);
+            if (exists) {
+              // replace existing message (edited/echo)
+              return prev.map((m) => (m.message_id === incoming.message_id ? incoming : m));
+            }
+            // append to bottom
+            return [...prev, incoming];
+          });
+        }
       } catch (e) {
         console.error(e);
       }
@@ -193,7 +280,12 @@ useEffect(() => {
         newMessage.trim(),
         file || undefined
       );
-      setMessages((prev) => [...prev, { ...res, status: "sent" }]);
+      setMessages((prev) => {
+        const sent = { ...res, status: "sent" } as Message;
+        const exists = prev.find((m) => m.message_id === sent.message_id);
+        if (exists) return prev.map((m) => (m.message_id === sent.message_id ? sent : m));
+        return [...prev, sent];
+      });
       setNewMessage("");
       if (filePreview) URL.revokeObjectURL(filePreview);
       setFilePreview(null);
@@ -225,13 +317,7 @@ useEffect(() => {
         editMessageContent,
         editFile || undefined
       );
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.message_id === editMessageId
-            ? { ...m, ...updated, status: "seen" }
-            : m
-        )
-      );
+      setMessages((prev) => sortAndUniqueMessages(prev.map((m) => (m.message_id === editMessageId ? { ...m, ...updated, status: "seen" } : m))));
       setEditMessageId(null);
       setEditMessageContent("");
       setEditFile(null);
@@ -241,15 +327,43 @@ useEffect(() => {
       console.error(e);
     }
   };
-  const handleDeleteMessage = async (id: string) => {
-    if (!confirm("Delete message?")) return;
+  
+  // Open delete confirmation modal
+  const handleDeleteMessage = (id: string) => {
+    setDeleteModal({ open: true, id });
+  };
+
+  const confirmDeleteMessage = async () => {
+    const id = deleteModal.id;
+    if (!id) return setDeleteModal({ open: false });
     try {
       await deleteMessage(id);
       setMessages((prev) => prev.filter((m) => m.message_id !== id));
     } catch (e) {
       console.error(e);
+    } finally {
+      setDeleteModal({ open: false });
     }
   };
+
+  const cancelDeleteMessage = () => setDeleteModal({ open: false });
+
+  // Confirm save edit
+  const requestSaveEdit = () => setEditConfirmOpen(true);
+  const confirmSaveEdit = async () => {
+    setEditConfirmOpen(false);
+    await handleSaveEdit();
+  };
+  const cancelSaveEdit = () => setEditConfirmOpen(false);
+
+  // Confirm remove edit file
+  const requestRemoveEditFile = () => setRemoveEditFileConfirm(true);
+  const confirmRemoveEditFile = () => {
+    setRemoveEditFileConfirm(false);
+    handleEditFileSelect(null);
+  };
+  const cancelRemoveEditFile = () => setRemoveEditFileConfirm(false);
+  // (original delete handler replaced by modal flow)
 
   const handleDeleteConversation = async (id: string) => {
     if (!confirm("Delete conversation?")) return;
@@ -397,7 +511,7 @@ useEffect(() => {
           </header>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+          <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="relative flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
             {messages.map((msg) => {
               const isMine = msg.sender_id === localStorage.getItem("user_id");
               return (
@@ -453,7 +567,7 @@ useEffect(() => {
                                   className="max-w-[150px] rounded"
                                 />
                                 <button
-                                  onClick={() => handleEditFileSelect(null)}
+                                  onClick={() => requestRemoveEditFile()}
                                   className="absolute top-0 right-0 bg-white text-red-600 rounded-full p-[1px]"
                                 >
                                   <XMarkIcon className="w-4 h-4" />
@@ -461,7 +575,7 @@ useEffect(() => {
                               </div>
                             )}
                             <Button
-                              onClick={handleSaveEdit}
+                              onClick={requestSaveEdit}
                               className="bg-indigo-700 text-white text-xs px-3 py-1 rounded-full self-end"
                             >
                               Done
@@ -537,7 +651,20 @@ useEffect(() => {
                 </div>
               );
             })}
+              <div ref={bottomRef} />
 
+              {newMessageCount > 0 && (
+                <button
+                  onClick={() => {
+                    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                    setNewMessageCount(0);
+                    setIsNearBottom(true);
+                  }}
+                  className="absolute bottom-4 right-4 bg-indigo-600 text-white px-3 py-1 rounded-full shadow-lg text-sm"
+                >
+                  {newMessageCount} new
+                </button>
+              )}
           </div>
 
           {/* File preview before send */}
@@ -610,6 +737,79 @@ useEffect(() => {
           >
             <XMarkIcon className="w-6 h-6" />
           </button>
+        </div>
+      )}
+
+      {/* Confirmation Modals */}
+      {deleteModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={cancelDeleteMessage} />
+          <div className="bg-white rounded-lg p-6 z-10 w-full max-w-md shadow-lg">
+            <h3 className="text-xl font-bold mb-2 text-gray-900">Delete message</h3>
+            <p className="text-base text-gray-700 mb-4">Are you sure you want to delete this message?</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelDeleteMessage}
+                className="px-4 py-2 rounded border border-gray-300 text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
+              >
+                No
+              </button>
+              <button
+                onClick={confirmDeleteMessage}
+                className="px-4 py-2 rounded bg-red-700 text-white hover:bg-red-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={cancelSaveEdit} />
+          <div className="bg-white rounded-lg p-6 z-10 w-full max-w-md shadow-lg">
+            <h3 className="text-xl font-bold mb-2 text-gray-900">Save changes</h3>
+            <p className="text-base text-gray-700 mb-4">Save changes to this message?</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelSaveEdit}
+                className="px-4 py-2 rounded border border-gray-300 text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
+              >
+                No
+              </button>
+              <button
+                onClick={confirmSaveEdit}
+                className="px-4 py-2 rounded bg-indigo-700 text-white hover:bg-indigo-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {removeEditFileConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={cancelRemoveEditFile} />
+          <div className="bg-white rounded-lg p-6 z-10 w-full max-w-md shadow-lg">
+            <h3 className="text-xl font-bold mb-2 text-gray-900">Remove attachment</h3>
+            <p className="text-base text-gray-700 mb-4">Remove the attached file from this message?</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelRemoveEditFile}
+                className="px-4 py-2 rounded border border-gray-300 text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
+              >
+                No
+              </button>
+              <button
+                onClick={confirmRemoveEditFile}
+                className="px-4 py-2 rounded bg-yellow-600 text-black hover:bg-yellow-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

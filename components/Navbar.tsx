@@ -11,6 +11,7 @@ import {
   BellDot,
   Menu,
   X,
+  Users,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { api } from "@/services/api";
@@ -91,6 +92,8 @@ const Navbar: React.FC = () => {
             <span>Profile</span>
           </Link>
 
+         
+
           <Link
             href="/messages"
             className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors"
@@ -149,6 +152,8 @@ const Navbar: React.FC = () => {
               <User size={20} className="text-green-500" />
               Profile
             </Link>
+
+           
 
             <Link
               href="/messages"
