@@ -5,8 +5,10 @@ import axios, { AxiosError, AxiosRequestConfig } from "axios";
 // -----------------------------------------------------------------------------
 // 🌍 Base URL for your deployed API
 // -----------------------------------------------------------------------------
+// Default to the Render-hosted API root + /api so frontend requests like
+// `api.post('/verify-email')` map to `https://<host>/api/verify-email`.
 const baseURL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://soceyo.onrender.com";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://soceyo.onrender.com/api";
 
 // ✅ Single Axios instance
 export const api = axios.create({
